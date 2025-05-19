@@ -1,55 +1,121 @@
+
+#include "stdafx.h"
+
+#ifdef HAVE_SDL3
+
 #include "stdafx.h"
 #include "ThrustmasterT500RS.h"
-#include "../Cell/lv2/sys_usbd.h"
-#include "../../Input/pad_thread.h"
-#include "../../util/types.hpp"
+#include "util/types.hpp"
 #include "Utilities/Timer.h"
-#include "ThrustmasterT500RSConfig.h" // Include the config header
 
-LOG_CHANNEL(t500rs_log, "T500RS");
+LOG_CHANNEL(thrustmaster_ffb2, "ThrustmasterFFB2"); // New log channel - changed name
 
 namespace
 {
-    constexpr u16 T500RS_VID = 0x044F;  // Thrustmaster vendor ID
-    constexpr u16 T500RS_PID = 0xB65D;  // T500RS product ID (PS3 mode)
+    // Helper function to convert SDL axis value to a centered and normalized value (-1 to 1)
+    static float map_sdl_axis_to_float(s16 sdl_val)
+    {
+        return static_cast<float>(sdl_val) / 32767.0f;
+    }
 
-    // Helper function to convert SDL axis value to T500RS pedal value (0-255)
-    static u8 sdl_to_t500rs_pedal(std::map<u64, std::vector<SDL_Joystick*>>& joysticks, const t500rs_sdl_mapping& mapping)
+    // Helper function to convert SDL axis value to a Thrustmaster pedal value (0-255)
+    static u8 sdl_to_thrustmaster_pedal(std::map<u64, std::vector<SDL_Joystick*>>& joysticks, const thrustmaster_sdl_mapping& mapping)
     {
         s16 sdl_val = fetch_sdl_axis_avg(joysticks, mapping);
-        return (sdl_val + 0x8000) * 0xFF / 0xFFFF;
+        return (sdl_val + 32768) * 255 / 65535;
     }
 
     // Helper function to convert SDL button press to bool
-    static bool sdl_to_t500rs_button(std::map<u64, std::vector<SDL_Joystick*>>& joysticks, const t500rs_sdl_mapping& mapping)
+    static bool sdl_to_thrustmaster_button(std::map<u64, std::vector<SDL_Joystick*>>& joysticks, const thrustmaster_sdl_mapping& mapping)
     {
-        return sdl_to_logitech_g27_button(joysticks, mapping); // Reuse the function.  SDL button event to bool.
+        if (joysticks.empty()) return false;
+        for (auto& [_, device_list] : joysticks)
+        {
+            if (device_list.empty()) continue;
+            for (SDL_Joystick* joystick : device_list)
+            {
+                if (!joystick) continue;
+                for (const auto& [input_id, mapped_inputs] : mapping.input_map)
+                {
+                    if (mapped_inputs.empty()) continue;
+                    for (const auto& mapped_input : mapped_inputs)
+                    {
+                        if (mapped_input.type == input_type::button)
+                        {
+                            if (SDL_JoystickGetButton(joystick, mapped_input.index))
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return false;
     }
 
-    // Helper function to convert SDL axis value to T500RS wheel position
-    static u16 map_sdl_to_t500rs_wheel_pos(s16 sdl_pos)
+    // Helper function to convert SDL axis value to Thrustmaster wheel position (0-0xFFFF)
+    static u16 map_sdl_to_thrustmaster_wheel_pos(s16 sdl_pos, u16 wheel_range)
     {
-        // Convert from SDL axis range (-32768 to 32767) to T500RS wheel position (0-1080 degrees)
-        const float normalized = (sdl_pos + 32768.0f) / 65535.0f;
-        const float degrees = normalized * 900.0f; // T500RS has 1080 degree rotation
-        return static_cast<u16>(degrees);
+        float normalized = (sdl_pos + 32768.0f) / 65535.0f;
+        u16 position = static_cast<u16>(normalized * wheel_range);
+        return position;
     }
-}
+
+    // Function to convert Thrustmaster FFB effect to a byte array (similar to G27, but adapted for Thrustmaster)
+    static std::vector<u8> convert_thrustmaster_effect_to_bytes(const u8* effect_data, u16 buf_size, bool reverse)
+    {
+        std::vector<u8> bytes;
+        if (buf_size < 8)
+        {
+            thrustmaster_ffb2.error("FFB effect data too small: %u, expected at least 8", buf_size); // Changed log channel
+            return bytes; // Return empty vector
+        }
+
+        u8 effect_type = effect_data[1];
+        s16 magnitude = static_cast<s16>(effect_data[2] | (effect_data[3] << 8));
+        s16 direction = static_cast<s16>(effect_data[4] | (effect_data[5] << 8)); // Direction is often 16-bit
+        u32 duration = static_cast<u32>(effect_data[6] | (effect_data[7] << 8) | (effect_data[8] << 16) | (effect_data[9] << 24)); // Duration can be longer
+
+        if (reverse)
+        {
+            magnitude = -magnitude;
+        }
+
+        // Thrustmaster-specific FFB data formatting.  This is the crucial part that needs to be adapted.
+        // The following is a placeholder example.  YOU MUST DETERMINE THE ACTUAL FORMAT.
+        bytes.push_back(0x01); // Example: Message type for FFB
+        bytes.push_back(effect_type);
+        bytes.push_back(magnitude & 0xFF);
+        bytes.push_back((magnitude >> 8) & 0xFF);
+        bytes.push_back(direction & 0xFF);
+        bytes.push_back((direction >> 8) & 0xFF);
+        bytes.push_back(duration & 0xFF);
+        bytes.push_back((duration >> 8) & 0xFF);
+        bytes.push_back((duration >> 16) & 0xFF);
+        bytes.push_back((duration >> 24) & 0xFF);
+        // Add more Thrustmaster-specific data as needed.  This is device dependent!
+
+        return bytes;
+    }
+} // namespace
 
 // Global configuration instance
-t500rs_config g_cfg_t500rs;
+#include "ThrustmasterFFB2Config.h" // New config - changed name
+thrustmaster_ffb2_config g_cfg_thrustmaster_ffb2; // New config - changed name
 
-usb_device_t500rs::usb_device_t500rs(u32 controller_index, const std::array<u8, 7>& location)
+usb_device_thrustmaster_ffb2::usb_device_thrustmaster_ffb2(u32 controller_index, const std::array<u8, 7>& location) // Changed class name
     : usb_device_emulated(controller_index, location)
     , m_controller_index(controller_index)
 {
-    g_cfg_t500rs.load(); // Load configuration from file
-    m_enabled = g_cfg_t500rs.enabled.get();
-    m_reverse_effects = g_cfg_t500rs.reverse_effects.get();
-    m_wheel_range = 900; //default
+    g_cfg_thrustmaster_ffb2.load(); // Changed config name
+    m_enabled = g_cfg_thrustmaster_ffb2.enabled.get(); // Changed config name
+    m_reverse_effects = g_cfg_thrustmaster_ffb2.reverse_effects.get(); // Changed config name
+    m_wheel_range = g_cfg_thrustmaster_ffb2.wheel_range.get(); // Changed config name
+    std::cout << "Thrustmaster FFB2 device created\n";
 }
 
-usb_device_t500rs::~usb_device_t500rs()
+usb_device_thrustmaster_ffb2::~usb_device_thrustmaster_ffb2() // Changed class name
 {
     if (m_house_keeping_thread)
     {
@@ -78,45 +144,43 @@ usb_device_t500rs::~usb_device_t500rs()
         }
     }
     m_joysticks.clear();
-    
+    std::cout << "Thrustmaster FFB2 device destroyed\n";
 }
 
-std::shared_ptr<usb_device> usb_device_t500rs::make_instance(u32 controller_index, const std::array<u8, 7>& location)
+std::shared_ptr<usb_device> usb_device_thrustmaster_ffb2::make_instance(u32 controller_index, const std::array<u8, 7>& location) // Changed class name
 {
-    return std::make_shared<usb_device_t500rs>(controller_index, location);
+    return std::make_shared<usb_device_thrustmaster_ffb2>(controller_index, location); // Changed class name
 }
 
-u16 usb_device_t500rs::get_num_emu_devices()
+u16 usb_device_thrustmaster_ffb2::get_num_emu_devices() // Changed class name
 {
     return 1;
 }
 
-bool usb_device_t500rs::open_device()
+bool usb_device_thrustmaster_ffb2::open_device() // Changed class name
 {
     if (!m_enabled)
     {
-        t500rs_log.notice("Thrustmaster FFB device disabled"); // Changed Wheel name
+        thrustmaster_ffb2.notice("Thrustmaster FFB2 device disabled"); // Changed log channel
         return false;
     }
 
-    t500rs_log.notice("Opening Thrustmaster FFB device");  // Changed Wheel name
+    thrustmaster_ffb2.notice("Opening Thrustmaster FFB2 device"); // Changed log channel
 
     if (!usb_device_emulated::open_device())
     {
         return false;
     }
 
-    // Initialize SDL if not already done
     if (SDL_WasInit(SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC) != (SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC))
     {
         if (SDL_InitSubSystem(SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC) != 0)
         {
-            t500rs_log.error("SDL_InitSubSystem failed: %s", SDL_GetError());
+            thrustmaster_ffb2.error("SDL_InitSubSystem failed: %s", SDL_GetError()); // Changed log channel
             return false;
         }
     }
-    
-     // Enumerate and open joysticks.  This is similar to the G27 implementation.
+
     int joystick_count = 0;
     if (SDL_JoystickID* joystick_ids = SDL_GetJoysticks(&joystick_count))
     {
@@ -125,27 +189,28 @@ bool usb_device_t500rs::open_device()
             SDL_Joystick* cur_joystick = SDL_OpenJoystick(joystick_ids[i]);
             if (!cur_joystick)
             {
-                t500rs_log.error("Failed opening joystick %d, %s", joystick_ids[i], SDL_GetError());
+                thrustmaster_ffb2.error("Failed opening joystick %d, %s", joystick_ids[i], SDL_GetError()); // Changed log channel
                 continue;
             }
             const u16 cur_vendor_id = SDL_GetJoystickVendor(cur_joystick);
             const u16 cur_product_id = SDL_GetJoystickProduct(cur_joystick);
-            
-            //Use the VID and PID to identify the device
-            if(cur_vendor_id == T500RS_VID && cur_product_id == T500RS_PID){ // Use the defined VID
-                 m_led_joystick_handle = cur_joystick; //save
-                 
-                 SDL_Haptic* cur_haptic = SDL_OpenHapticFromJoystick(cur_joystick);
+
+            //  Match Vendor and Product ID.
+             if (cur_vendor_id == TMX_WHEEL_VID && (cur_product_id == TMX_WHEEL_PID || cur_product_id == T150_WHEEL_PID))
+            {
+                m_led_joystick_handle = cur_joystick; //same handle
+
+                SDL_Haptic* cur_haptic = SDL_OpenHapticFromJoystick(cur_joystick);
                 if (cur_haptic == nullptr)
                 {
-                    t500rs_log.error("Failed opening haptic device from selected ffb device %04x:%04x, %s", cur_vendor_id, cur_product_id, SDL_GetError());
-                }
+                    thrustmaster_ffb2.error("Failed opening haptic device from selected ffb device %04x:%04x, %s", cur_vendor_id, cur_product_id, SDL_GetError());
+                 }
                 else
                 {
                     m_haptic_handle = cur_haptic;
                 }
             }
-            
+
             const emulated_g27_device_type_id joystick_type_id_struct =
             {
                 .product_id = static_cast<u64>(cur_product_id),
@@ -169,11 +234,10 @@ bool usb_device_t500rs::open_device()
     }
     else
     {
-        t500rs_log.error("Failed fetching joystick list, %s", SDL_GetError());
+        thrustmaster_ffb2.error("Failed fetching joystick list, %s", SDL_GetError()); // Changed log channel
     }
 
-    // Start housekeeping thread for handling force feedback and LED updates
-    m_house_keeping_thread = std::make_unique<named_thread<std::function<void()>>>("T500RS House Keeping Thread", [this]()
+    m_house_keeping_thread = std::make_unique<named_thread<std::function<void()>>>("Thrustmaster FFB2 House Keeping Thread", [this]() // Changed thread name
     {
         while (thread_ctrl::state() != thread_state::aborting)
         {
@@ -181,19 +245,18 @@ bool usb_device_t500rs::open_device()
             {
                 sdl_refresh();
             }
-            thread_ctrl::wait_for(33'333); // ~30Hz refresh rate
+            thread_ctrl::wait_for(33'333);
         }
     });
 
     return true;
 }
 
-void usb_device_t500rs::sdl_refresh()
+void usb_device_thrustmaster_ffb2::sdl_refresh() // Changed class name
 {
     std::lock_guard lock(m_sdl_handles_mutex);
 
-     // Update force feedback effects if needed
-    if (m_haptic_handle)
+     if (m_haptic_handle)
     {
         for (auto& slot : m_effect_slots)
         {
@@ -210,100 +273,70 @@ void usb_device_t500rs::sdl_refresh()
                     SDL_HapticRunEffect(m_haptic_handle, slot.effect_id, 1);
                     slot.state = t500rs_ffb_state::playing;
                 }
-                 else
+                else
                 {
-                     t500rs_log.error("SDL_HapticNewEffect failed: %s", SDL_GetError());
+                    thrustmaster_ffb2.error("SDL_HapticNewEffect failed: %s", SDL_GetError()); // Changed log channel
                 }
             }
         }
     }
-    
-    //handle LED
-    if(m_led_joystick_handle){
-       //SDL_SetJoystickLED(m_led_joystick_handle, r, g, b); //not implemented
+
+    if (m_led_joystick_handle)
+    {
+       // SDL_SetJoystickLED(m_led_joystick_handle, r, g, b);  // Not implemented
     }
 }
 
-
-
-void usb_device_t500rs::control_transfer(u8 bmRequestType, u8 bRequest, u16 wValue, u16 wIndex, u16 wLength, u32 buf_size, u8* buf, UsbTransfer* transfer)
+void usb_device_thrustmaster_ffb2::control_transfer(u8 bmRequestType, u8 bRequest, u16 wValue, u16 wIndex, u16 wLength, u32 buf_size, u8* buf, UsbTransfer* transfer) // Changed class name
 {
     transfer->fake = true;
     transfer->status = HC_CC_NOERR;
-    
-     if (bmRequestType == 0x21 && bRequest == 0x09) // Example: FF command
-    {
-        if (buf_size >= 8) // Adjust based on T500RS FF command size
-        {
-            // 1. Parse T500RS FF Command
-            u8 effect_type = buf[1];
-            // Extract other parameters (strength, duration, etc.)
 
-            // 2. Convert to SDL Haptic Effect
-            SDL_HapticEffect effect;
-            memset(&effect, 0, sizeof(SDL_HapticEffect)); //important
-            switch (effect_type)
+    if (bmRequestType == 0x21 && bRequest == 0x09)
+    {
+        if (buf_size >= 8)
+        {
+            SDL_HapticEffect effect = convert_t500rs_effect_to_sdl(buf, buf_size, m_reverse_effects.get());
+            if (effect.type == 0)
             {
-                case 0x01: // Example: Constant Force
-                    effect.type = SDL_HAPTIC_CONSTANT;
-                    effect.constant.direction.type = SDL_HAPTIC_POLAR;
-                    effect.constant.direction.dir[0] = 0; // Angle
-                    effect.constant.length = SDL_HAPTIC_INFINITY;
-                    effect.constant.level = static_cast<s16>(buf[2] | (buf[3] << 8)); // Example
-                    if(m_reverse_effects){
-                       effect.constant.level = -effect.constant.level;
-                    }
-                    break;
-                case 0x02: // Example: Spring Effect
-                    effect.type = SDL_HAPTIC_SPRING;
-                    effect.condition.direction.type = SDL_HAPTIC_POLAR;
-                    effect.condition.direction.dir[0] = 0;
-                    effect.condition.length = SDL_HAPTIC_INFINITY;
-                    effect.condition.right_coeff[0] = static_cast<s16>(buf[4]);
-                    effect.condition.left_coeff[0] = static_cast<s16>(buf[5]);
-                    break;
-                // Handle other effect types
-                default:
-                  t500rs_log.error("Unsupported effect type: %02x", effect_type);
-                  transfer->status = HC_CC_ERROR;
-                  return;
+                transfer->status = HC_CC_ERROR;
+                return;
             }
 
-            // 3.  Find a free slot and store the effect.
-            size_t slot_index = buf[0] & 0x03; // Example slot
+            size_t slot_index = buf[0] & 0x03;
             if (slot_index < m_effect_slots.size())
             {
                 auto& slot = m_effect_slots[slot_index];
                 slot.last_effect = effect;
-                slot.state = t500rs_ffb_state::downloaded; // Mark it as ready to play
+                slot.state = t500rs_ffb_state::downloaded;
                 slot.last_update = get_system_time();
             }
             else
             {
-                t500rs_log.error("Invalid effect slot: %d", slot_index);
+                thrustmaster_ffb2.error("Invalid effect slot: %d", slot_index); // Changed log channel
                 transfer->status = HC_CC_ERROR;
                 return;
             }
         }
         else
         {
-          t500rs_log.error("FF data too small: %d", buf_size);
-          transfer->status = HC_CC_ERROR;
-          return;
+            thrustmaster_ffb2.error("FF data too small: %d", buf_size); // Changed log channel
+            transfer->status = HC_CC_ERROR;
+            return;
         }
     }
 }
 
-void usb_device_t500rs::interrupt_transfer(u32 buf_size, u8* buf, u32 endpoint, UsbTransfer* transfer)
+void usb_device_thrustmaster_ffb2::interrupt_transfer(u32 buf_size, u8* buf, u32 endpoint, UsbTransfer* transfer) // Changed class name
 {
     transfer->fake = true;
     transfer->status = HC_CC_NOERR;
 
-    if (endpoint == 0x81) // IN endpoint
+    if (endpoint == 0x81)
     {
-        if (buf_size < 8) // Adjust based on actual T500RS report size
+        if (buf_size < 8)
         {
-            t500rs_log.error("Input buffer too small: %u, expected 8", buf_size);
+            thrustmaster_ffb2.error("Input buffer too small: %u, expected 8", buf_size); // Changed log channel
             return;
         }
         memset(buf, 0, buf_size);
@@ -311,28 +344,23 @@ void usb_device_t500rs::interrupt_transfer(u32 buf_size, u8* buf, u32 endpoint, 
         sdl_instance::get_instance().pump_events();
         m_sdl_handles_mutex.lock();
 
-        // 1. Get SDL Joystick State
-        s16 wheel_position_sdl = fetch_sdl_axis_avg(m_joysticks, g_cfg_t500rs.steering);
-        u8 throttle_sdl = sdl_to_t500rs_pedal(m_joysticks, g_cfg_t500rs.throttle);
-        u8 brake_sdl = sdl_to_t500rs_pedal(m_joysticks, g_cfg_t500rs.brake);
-        u8 clutch_sdl = sdl_to_t500rs_pedal(m_joysticks, g_cfg_t500rs.clutch);
-        bool shift_up_sdl = sdl_to_t500rs_button(m_joysticks, g_cfg_t500rs.shift_up);
-        bool shift_down_sdl = sdl_to_t500rs_button(m_joysticks, g_cfg_t500rs.shift_down);
-        bool horn_sdl = sdl_to_t500rs_button(m_joysticks, g_cfg_t500rs.horn);
+        s16 wheel_position_sdl = fetch_sdl_axis_avg(m_joysticks, g_cfg_thrustmaster_ffb2.steering); // Changed config name
+        u8 throttle_sdl = sdl_to_thrustmaster_pedal(m_joysticks, g_cfg_thrustmaster_ffb2.throttle); // Changed config name
+        u8 brake_sdl = sdl_to_thrustmaster_pedal(m_joysticks, g_cfg_thrustmaster_ffb2.brake); // Changed config name
+        u8 clutch_sdl = sdl_to_thrustmaster_pedal(m_joysticks, g_cfg_thrustmaster_ffb2.clutch); // Changed config name
+        bool shift_up_sdl = sdl_to_thrustmaster_button(m_joysticks, g_cfg_thrustmaster_ffb2.shift_up); // Changed config name
+        bool shift_down_sdl = sdl_to_thrustmaster_button(m_joysticks, g_cfg_thrustmaster_ffb2.shift_down); // Changed config name
+        bool horn_sdl = sdl_to_thrustmaster_button(m_joysticks, g_cfg_thrustmaster_ffb2.horn);     // Changed config name
 
         m_sdl_handles_mutex.unlock();
 
-        // 2. Map SDL State to T500RS Report Format
-        // Example (assuming 16-bit wheel position):
-        u16 wheel_position_t500rs = map_sdl_to_t500rs_wheel_pos(wheel_position_sdl);
-        buf[1] = wheel_position_t500rs & 0xFF;
-        buf[2] = (wheel_position_t500rs >> 8) & 0xFF;
-
+        u16 wheel_position_thrustmaster = map_sdl_to_thrustmaster_wheel_pos(wheel_position_sdl, m_wheel_range);
+        buf[1] = wheel_position_thrustmaster & 0xFF;
+        buf[2] = (wheel_position_thrustmaster >> 8) & 0xFF;
         buf[3] = throttle_sdl;
         buf[4] = brake_sdl;
         buf[5] = clutch_sdl;
 
-        // 3. Map buttons.  You'll need the correct bit positions for the T500RS.  This is an example.
         u16 buttons = 0;
         if (shift_up_sdl) buttons |= (1 << 0);
         if (shift_down_sdl) buttons |= (1 << 1);
@@ -341,4 +369,5 @@ void usb_device_t500rs::interrupt_transfer(u32 buf_size, u8* buf, u32 endpoint, 
         buf[7] = (buttons >> 8) & 0xFF;
     }
 }
+
 

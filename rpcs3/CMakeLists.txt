@@ -184,6 +184,14 @@ if (NOT ANDROID)
         install(DIRECTORY ../bin/test
             DESTINATION ${CMAKE_INSTALL_DATADIR}/rpcs3)
     endif()
+
+    if(UNIX AND NOT APPLE)
+        target_link_libraries(rpcs3_lib PRIVATE
+            Libusb::Libusb
+            Libevdev::Libevdev
+            Udev::Udev
+        )
+    endif()
 endif()
 
 # Unit tests

@@ -94,4 +94,4 @@ private:
     bool m_enabled = false;
 
     std::unique_ptr<named_thread<std::function<void()>>> m_house_keeping_thread;
-}; 
+};

@@ -66,4 +66,4 @@ private:
     QScrollArea* m_mapping_scroll_area = nullptr;
 };
 
-#endif 
+#endif

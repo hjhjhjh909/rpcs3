@@ -6,6 +6,10 @@
 #include "Emu/Io/ThrustmasterT500RS.h"
 #include "Input/sdl_instance.h"
 #include "qt_utils.h"
+#include "Emu/Io/ThrustmasterT500RSConfig.h"
+#include "../../Utilities/Config.h"
+#include "../../Utilities/File.h"
+#include "../../util/logs.hpp"
 
 #include <QDialogButtonBox>
 #include <QGroupBox>
@@ -17,8 +21,10 @@
 #include <QTimer>
 #include <QSlider>
 #include <QComboBox>
+#include <QIcon>
 
 LOG_CHANNEL(t500rs_cfg_log, "T500RS");
+LOG_CHANNEL(t500rs_log, "T500RS");
 
 static const QString DEFAULT_STATUS = " ";
 
@@ -388,7 +394,8 @@ emulated_thrustmaster_t500rs_settings_dialog::emulated_thrustmaster_t500rs_setti
     : QDialog(parent)
 {
     setObjectName("emulated_thrustmaster_t500rs_settings_dialog");
-    setWindowTitle(tr("Configure Emulated Thrustmaster T500RS Wheel"));
+    setWindowTitle(tr("Thrustmaster T500RS Settings"));
+    setWindowIcon(QIcon(":/rpcs3.ico"));
     setAttribute(Qt::WA_DeleteOnClose);
     setAttribute(Qt::WA_StyledBackground);
     setModal(true);
@@ -436,10 +443,10 @@ emulated_thrustmaster_t500rs_settings_dialog::emulated_thrustmaster_t500rs_setti
     mapping_note->setWordWrap(true);
     v_layout->addWidget(mapping_note);
 
-    m_enabled = new QCheckBox(tr("Enabled (requires game restart)"), this);
+    m_enabled = new QCheckBox(tr("Enable T500RS Emulator"), this);
     v_layout->addWidget(m_enabled);
 
-    m_reverse_effects = new QCheckBox(tr("Reverse force feedback effects"), this);
+    m_reverse_effects = new QCheckBox(tr("Reverse Force Feedback Effects"), this);
     v_layout->addWidget(m_reverse_effects);
 
     m_state_text = new QLabel(DEFAULT_STATUS, this);

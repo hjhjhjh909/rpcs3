@@ -16,6 +16,7 @@
 #include <map>
 #include <vector>
 
+// FFB state for T500RS
 enum class t500rs_ffb_state
 {
     inactive,
@@ -29,6 +30,17 @@ struct t500rs_ffb_slot
     u64 last_update = 0;
     SDL_HapticEffect last_effect {};
     int effect_id = -1;
+};
+
+// sdl_mapping struct, copied and renamed from G27 for independence
+struct sdl_mapping
+{
+    u64 device_type_id = 0;
+    sdl_mapping_type type = sdl_mapping_type::button;
+    u64 id = 0;
+    hat_component hat = hat_component::none;
+    bool reverse = false;
+    bool positive_axis = false;
 };
 
 struct t500rs_sdl_mapping
@@ -56,7 +68,7 @@ struct t500rs_sdl_mapping
     sdl_mapping r3 {};
 
     sdl_mapping select {};
-    sdl_mapping start {};
+    sdl_mapping pause {};
 };
 
 class usb_device_t500rs : public usb_device_emulated
@@ -76,7 +88,6 @@ private:
     void sdl_refresh();
 
     u32 m_controller_index = 0;
-
     t500rs_sdl_mapping m_mapping {};
     bool m_reverse_effects = false;
 
@@ -85,11 +96,10 @@ private:
     SDL_Haptic* m_haptic_handle = nullptr;
     std::map<u64, std::vector<SDL_Joystick*>> m_joysticks;
     bool m_fixed_loop = false;
-    u16 m_wheel_range = 900; // T500RS uses 900 degrees in PS3 mode
+    u16 m_wheel_range = 900; // T500RS uses 900 degrees
     std::array<t500rs_ffb_slot, 4> m_effect_slots {};
     SDL_HapticEffect m_default_spring_effect {};
     int m_default_spring_effect_id = -1;
-
     bool m_enabled = false;
 
     std::unique_ptr<named_thread<std::function<void()>>> m_house_keeping_thread;

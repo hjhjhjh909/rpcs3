@@ -1,27 +1,15 @@
 #pragma once
 
+#include "util/types.hpp"
 #include "../../Utilities/Config.h"
 #include "../../Utilities/File.h"
-#include "../util/types.hpp"
+#include "../../util/logs.hpp"
+#include "pad_mapping_types.h"
+
+LOG_CHANNEL(cfg_log, "CFG");
 
 #include <string>
 #include <mutex>
-
-enum class sdl_mapping_type
-{
-    button = 0,
-    hat,
-    axis,
-};
-
-enum class hat_component
-{
-    none = 0,
-    up,
-    down,
-    left,
-    right
-};
 
 // Device type ID structure: num_buttons:10 << 52 | num_hats:10 << 42 | num_axes:10 << 32 | vendor_id:16 << 16 | product_id:16
 struct emulated_t500rs_device_type_id

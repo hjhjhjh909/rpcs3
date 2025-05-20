@@ -185,6 +185,15 @@ private:
 	static std::string axis_to_string(SDL_GamepadAxis axis);
 
 	static SDLKeyCodes get_button_code(SDL_GamepadButton button);
+
+	struct sdl_mapping {
+		u64 device_type_id = 0;
+		sdl_mapping_type type = sdl_mapping_type::button;
+		u64 id = 0;
+		hat_component hat = hat_component::none;
+		bool reverse = false;
+		bool positive_axis = false;
+	};
 };
 
 #endif

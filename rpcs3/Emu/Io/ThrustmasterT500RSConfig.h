@@ -4,8 +4,6 @@
 
 #include <mutex>
 
-LOG_CHANNEL(cfg_log, "CFG");
-
 // Define the enums directly
 enum class sdl_mapping_type {
     button = 0,

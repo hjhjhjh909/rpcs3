@@ -8,7 +8,7 @@
 #include "util/types.hpp"
 #include "Utilities/Timer.h"
 
-LOG_CHANNEL(thrustmaster_ffb2, "ThrustmasterFFB2"); // New log channel - changed name
+LOG_CHANNEL(thrustmaster_ffb2, "ThrustmasterFFB"); // New log channel - changed name
 
 namespace
 {
@@ -101,21 +101,21 @@ namespace
 } // namespace
 
 // Global configuration instance
-#include "ThrustmasterFFB2Config.h" // New config - changed name
-thrustmaster_ffb2_config g_cfg_thrustmaster_ffb2; // New config - changed name
+#include "ThrustmasterFFBConfig.h" // New config - changed name
+thrustmaster_ffb2_config g_cfg_thrustmaster_ffb; // New config - changed name
 
 usb_device_thrustmaster_ffb2::usb_device_thrustmaster_ffb2(u32 controller_index, const std::array<u8, 7>& location) // Changed class name
     : usb_device_emulated(controller_index, location)
     , m_controller_index(controller_index)
 {
-    g_cfg_thrustmaster_ffb2.load(); // Changed config name
-    m_enabled = g_cfg_thrustmaster_ffb2.enabled.get(); // Changed config name
+    g_cfg_thrustmaster_ffb.load(); // Changed config name
+    m_enabled = g_cfg_thrustmaster_ffb.enabled.get(); // Changed config name
     m_reverse_effects = g_cfg_thrustmaster_ffb2.reverse_effects.get(); // Changed config name
     m_wheel_range = g_cfg_thrustmaster_ffb2.wheel_range.get(); // Changed config name
-    std::cout << "Thrustmaster FFB2 device created\n";
+    std::cout << "Thrustmaster FFB device created\n";
 }
 
-usb_device_thrustmaster_ffb2::~usb_device_thrustmaster_ffb2() // Changed class name
+usb_device_thrustmaster_ffb::~usb_device_thrustmaster_ffb() // Changed class name
 {
     if (m_house_keeping_thread)
     {
@@ -144,28 +144,28 @@ usb_device_thrustmaster_ffb2::~usb_device_thrustmaster_ffb2() // Changed class n
         }
     }
     m_joysticks.clear();
-    std::cout << "Thrustmaster FFB2 device destroyed\n";
+    std::cout << "Thrustmaster FFB device destroyed\n";
 }
 
-std::shared_ptr<usb_device> usb_device_thrustmaster_ffb2::make_instance(u32 controller_index, const std::array<u8, 7>& location) // Changed class name
+std::shared_ptr<usb_device> usb_device_thrustmaster_ffb::make_instance(u32 controller_index, const std::array<u8, 7>& location) // Changed class name
 {
-    return std::make_shared<usb_device_thrustmaster_ffb2>(controller_index, location); // Changed class name
+    return std::make_shared<usb_device_thrustmaster_ffb>(controller_index, location); // Changed class name
 }
 
-u16 usb_device_thrustmaster_ffb2::get_num_emu_devices() // Changed class name
+u16 usb_device_thrustmaster_ffb::get_num_emu_devices() // Changed class name
 {
     return 1;
 }
 
-bool usb_device_thrustmaster_ffb2::open_device() // Changed class name
+bool usb_device_thrustmaster_ffb::open_device() // Changed class name
 {
     if (!m_enabled)
     {
-        thrustmaster_ffb2.notice("Thrustmaster FFB2 device disabled"); // Changed log channel
+        thrustmaster_ffb.notice("Thrustmaster FFB device disabled"); // Changed log channel
         return false;
     }
 
-    thrustmaster_ffb2.notice("Opening Thrustmaster FFB2 device"); // Changed log channel
+    thrustmaster_ffb.notice("Opening Thrustmaster FFB device"); // Changed log channel
 
     if (!usb_device_emulated::open_device())
     {
@@ -176,7 +176,7 @@ bool usb_device_thrustmaster_ffb2::open_device() // Changed class name
     {
         if (SDL_InitSubSystem(SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC) != 0)
         {
-            thrustmaster_ffb2.error("SDL_InitSubSystem failed: %s", SDL_GetError()); // Changed log channel
+            thrustmaster_ffb.error("SDL_InitSubSystem failed: %s", SDL_GetError()); // Changed log channel
             return false;
         }
     }
@@ -189,7 +189,7 @@ bool usb_device_thrustmaster_ffb2::open_device() // Changed class name
             SDL_Joystick* cur_joystick = SDL_OpenJoystick(joystick_ids[i]);
             if (!cur_joystick)
             {
-                thrustmaster_ffb2.error("Failed opening joystick %d, %s", joystick_ids[i], SDL_GetError()); // Changed log channel
+                thrustmaster_ffb.error("Failed opening joystick %d, %s", joystick_ids[i], SDL_GetError()); // Changed log channel
                 continue;
             }
             const u16 cur_vendor_id = SDL_GetJoystickVendor(cur_joystick);
@@ -203,7 +203,7 @@ bool usb_device_thrustmaster_ffb2::open_device() // Changed class name
                 SDL_Haptic* cur_haptic = SDL_OpenHapticFromJoystick(cur_joystick);
                 if (cur_haptic == nullptr)
                 {
-                    thrustmaster_ffb2.error("Failed opening haptic device from selected ffb device %04x:%04x, %s", cur_vendor_id, cur_product_id, SDL_GetError());
+                    thrustmaster_ffb.error("Failed opening haptic device from selected ffb device %04x:%04x, %s", cur_vendor_id, cur_product_id, SDL_GetError());
                  }
                 else
                 {
@@ -234,10 +234,10 @@ bool usb_device_thrustmaster_ffb2::open_device() // Changed class name
     }
     else
     {
-        thrustmaster_ffb2.error("Failed fetching joystick list, %s", SDL_GetError()); // Changed log channel
+        thrustmaster_ffb.error("Failed fetching joystick list, %s", SDL_GetError()); // Changed log channel
     }
 
-    m_house_keeping_thread = std::make_unique<named_thread<std::function<void()>>>("Thrustmaster FFB2 House Keeping Thread", [this]() // Changed thread name
+    m_house_keeping_thread = std::make_unique<named_thread<std::function<void()>>>("Thrustmaster FFB House Keeping Thread", [this]() // Changed thread name
     {
         while (thread_ctrl::state() != thread_state::aborting)
         {
@@ -252,7 +252,7 @@ bool usb_device_thrustmaster_ffb2::open_device() // Changed class name
     return true;
 }
 
-void usb_device_thrustmaster_ffb2::sdl_refresh() // Changed class name
+void usb_device_thrustmaster_ffb::sdl_refresh() // Changed class name
 {
     std::lock_guard lock(m_sdl_handles_mutex);
 
@@ -275,7 +275,7 @@ void usb_device_thrustmaster_ffb2::sdl_refresh() // Changed class name
                 }
                 else
                 {
-                    thrustmaster_ffb2.error("SDL_HapticNewEffect failed: %s", SDL_GetError()); // Changed log channel
+                    thrustmaster_ffb.error("SDL_HapticNewEffect failed: %s", SDL_GetError()); // Changed log channel
                 }
             }
         }
@@ -287,7 +287,7 @@ void usb_device_thrustmaster_ffb2::sdl_refresh() // Changed class name
     }
 }
 
-void usb_device_thrustmaster_ffb2::control_transfer(u8 bmRequestType, u8 bRequest, u16 wValue, u16 wIndex, u16 wLength, u32 buf_size, u8* buf, UsbTransfer* transfer) // Changed class name
+void usb_device_thrustmaster_ffb::control_transfer(u8 bmRequestType, u8 bRequest, u16 wValue, u16 wIndex, u16 wLength, u32 buf_size, u8* buf, UsbTransfer* transfer) // Changed class name
 {
     transfer->fake = true;
     transfer->status = HC_CC_NOERR;
@@ -313,21 +313,21 @@ void usb_device_thrustmaster_ffb2::control_transfer(u8 bmRequestType, u8 bReques
             }
             else
             {
-                thrustmaster_ffb2.error("Invalid effect slot: %d", slot_index); // Changed log channel
+                thrustmaster_ffb.error("Invalid effect slot: %d", slot_index); // Changed log channel
                 transfer->status = HC_CC_ERROR;
                 return;
             }
         }
         else
         {
-            thrustmaster_ffb2.error("FF data too small: %d", buf_size); // Changed log channel
+            thrustmaster_ffb.error("FF data too small: %d", buf_size); // Changed log channel
             transfer->status = HC_CC_ERROR;
             return;
         }
     }
 }
 
-void usb_device_thrustmaster_ffb2::interrupt_transfer(u32 buf_size, u8* buf, u32 endpoint, UsbTransfer* transfer) // Changed class name
+void usb_device_thrustmaster_ffb::interrupt_transfer(u32 buf_size, u8* buf, u32 endpoint, UsbTransfer* transfer) // Changed class name
 {
     transfer->fake = true;
     transfer->status = HC_CC_NOERR;
@@ -336,7 +336,7 @@ void usb_device_thrustmaster_ffb2::interrupt_transfer(u32 buf_size, u8* buf, u32
     {
         if (buf_size < 8)
         {
-            thrustmaster_ffb2.error("Input buffer too small: %u, expected 8", buf_size); // Changed log channel
+            thrustmaster_ffb.error("Input buffer too small: %u, expected 8", buf_size); // Changed log channel
             return;
         }
         memset(buf, 0, buf_size);
@@ -344,13 +344,12 @@ void usb_device_thrustmaster_ffb2::interrupt_transfer(u32 buf_size, u8* buf, u32
         sdl_instance::get_instance().pump_events();
         m_sdl_handles_mutex.lock();
 
-        s16 wheel_position_sdl = fetch_sdl_axis_avg(m_joysticks, g_cfg_thrustmaster_ffb2.steering); // Changed config name
-        u8 throttle_sdl = sdl_to_thrustmaster_pedal(m_joysticks, g_cfg_thrustmaster_ffb2.throttle); // Changed config name
-        u8 brake_sdl = sdl_to_thrustmaster_pedal(m_joysticks, g_cfg_thrustmaster_ffb2.brake); // Changed config name
-        u8 clutch_sdl = sdl_to_thrustmaster_pedal(m_joysticks, g_cfg_thrustmaster_ffb2.clutch); // Changed config name
-        bool shift_up_sdl = sdl_to_thrustmaster_button(m_joysticks, g_cfg_thrustmaster_ffb2.shift_up); // Changed config name
-        bool shift_down_sdl = sdl_to_thrustmaster_button(m_joysticks, g_cfg_thrustmaster_ffb2.shift_down); // Changed config name
-        bool horn_sdl = sdl_to_thrustmaster_button(m_joysticks, g_cfg_thrustmaster_ffb2.horn);     // Changed config name
+        s16 wheel_position_sdl = fetch_sdl_axis_avg(m_joysticks, g_cfg_thrustmaster_ffb.steering); // Changed config name
+        u8 throttle_sdl = sdl_to_thrustmaster_pedal(m_joysticks, g_cfg_thrustmaster_ffb.throttle); // Changed config name
+        u8 brake_sdl = sdl_to_thrustmaster_pedal(m_joysticks, g_cfg_thrustmaster_ffb.brake); // Changed config name
+        u8 clutch_sdl = sdl_to_thrustmaster_pedal(m_joysticks, g_cfg_thrustmaster_ffb.clutch); // Changed config name
+        bool shift_up_sdl = sdl_to_thrustmaster_button(m_joysticks, g_cfg_thrustmaster_ffb.shift_up); // Changed config name
+        bool shift_down_sdl = sdl_to_thrustmaster_button(m_joysticks, g_cfg_thrustmaster_ffb.shift_down); // Changed config name
 
         m_sdl_handles_mutex.unlock();
 

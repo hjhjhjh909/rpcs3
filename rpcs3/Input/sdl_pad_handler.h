@@ -13,7 +13,6 @@
 #pragma GCC diagnostic pop
 #endif
 
-
 class SDLDevice : public PadDevice
 {
 public:
@@ -78,6 +77,26 @@ public:
 	bool led_is_blinking = false;
 	steady_clock::time_point led_timestamp{};
 };
+
+// ====== INSERTED ENUM DEFINITIONS TO FIX BUILD ERRORS ======
+
+enum class sdl_mapping_type
+{
+	button,
+	axis,
+	hat
+};
+
+enum class hat_component
+{
+	none,
+	up,
+	down,
+	left,
+	right
+};
+
+// ============================================================
 
 class sdl_pad_handler : public PadHandlerBase
 {
@@ -156,8 +175,8 @@ public:
 	std::vector<pad_list_entry> list_devices() override;
 	void SetPadData(const std::string& padId, u8 player_id, u8 large_motor, u8 small_motor, s32 r, s32 g, s32 b, bool player_led, bool battery_led, u32 battery_led_brightness) override;
 	u32 get_battery_level(const std::string& padId) override;
-	void get_motion_sensors(const std::string& pad_id, const motion_callback& callback, const motion_fail_callback& fail_callback, motion_preview_values preview_values, const std::array<AnalogSensor, 4>& sensors) override;
-	connection get_next_button_press(const std::string& padId, const pad_callback& callback, const pad_fail_callback& fail_callback, gui_call_type call_type, const std::vector<std::string>& buttons) override;
+	void get_motion_sensors(const std::string& pad_id, const motion_callback& callback, const motion_fail_callback& fail_callback, motion_preview_values preview_values, const std::array<AnalogSensor, 4>&[...]
+	connection get_next_button_press(const std::string& padId, const pad_callback& callback, const pad_fail_callback& fail_callback, gui_call_type call_type, const std::vector<std::string>& buttons) over[...]
 
 private:
 	// pseudo 'controller id' to keep track of unique controllers

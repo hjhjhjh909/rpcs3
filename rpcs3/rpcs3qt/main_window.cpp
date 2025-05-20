@@ -2106,3 +2106,10 @@ void main_window::BootRecentAction(const QAction* act, bool is_savestate)
 
 	recent_game_wrapper& rgw = is_savestate ? m_recent_save : m_recent_game;
 	QMenu* menu = is_savestate ? ui->bootRecentSavestatesMenu : ui->bootRecentMenu;
+
+	void main_window::show_t500rs_settings_dialog()
+	{
+		emulated_thrustmaster_t500rs_settings_dialog dialog(this);
+		dialog.exec();
+	}
+}

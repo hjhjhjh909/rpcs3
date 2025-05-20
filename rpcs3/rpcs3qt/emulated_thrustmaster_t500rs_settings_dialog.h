@@ -6,6 +6,7 @@
 #include <QLabel>
 #include <QCheckBox>
 #include <QScrollArea>
+#include "pad_mapping_types.h"
 
 #ifndef _MSC_VER
 #pragma GCC diagnostic push
@@ -19,13 +20,6 @@
 #include <map>
 #include <vector>
 #include <Emu/Io/ThrustmasterT500RSConfig.h>
-
-struct joystick_state
-{
-    std::vector<s16> axes;
-    std::vector<bool> buttons;
-    std::vector<hat_component> hats;
-};
 
 class Mapping;
 class DeviceChoice;

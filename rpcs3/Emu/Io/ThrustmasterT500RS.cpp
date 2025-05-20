@@ -3,12 +3,13 @@
 
 #ifdef HAVE_SDL3
 
-#include "stdafx.h"
 #include "ThrustmasterT500RS.h"
-#include "util/types.hpp"
-#include "Utilities/Timer.h"
+#include "Emu/Cell/lv2/sys_usbd.h"
+#include "Emu/system_config.h"
+#include "Input/pad_thread.h"
+#include "Input/sdl_instance.h"
 
-LOG_CHANNEL(thrustmaster_ffb2, "ThrustmasterFFB"); // New log channel - changed name
+LOG_CHANNEL(thrustmaster_t500rs_log, "ThrustmasterFFB"); // New log channel - changed name
 
 namespace
 {

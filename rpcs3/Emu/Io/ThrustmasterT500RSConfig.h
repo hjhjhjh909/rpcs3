@@ -2,7 +2,6 @@
 
 #include "Utilities/Config.h"
 #include <mutex>
-#include <string>
 
 // Mapping enums
 enum class sdl_mapping_type

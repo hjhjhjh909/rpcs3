@@ -4,6 +4,7 @@
 #include "Emu/Cell/timers.hpp"
 #include "Input/pad_thread.h"
 #include "Input/product_info.h"
+#include "ThrustmasterT500RS.h"
 
 cfg_input g_cfg_input;
 
@@ -974,4 +975,10 @@ void PadDevice::update_orientation(ps_move_data& move_data)
 	move_data.quaternion[1] = quaternion.array[2];
 	move_data.quaternion[2] = quaternion.array[3];
 	move_data.quaternion[3] = quaternion.array[0];
+}
+
+void PadHandlerBase::Init()
+{
+	// Existing device initialization...
+	AddHandler(std::make_unique<ThrustmasterT500RS>());
 }

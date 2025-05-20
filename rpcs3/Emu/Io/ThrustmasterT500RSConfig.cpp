@@ -1,8 +1,10 @@
 #include "stdafx.h"
+
+#ifdef HAVE_SDL3
+
+#include "Utilities/File.h"
 #include "ThrustmasterT500RSConfig.h"
-#include "../../Utilities/Config.h"
-#include "../../Utilities/File.h"
-#include "../../util/logs.hpp"
+
 
 LOG_CHANNEL(cfg_log, "CFG");
 

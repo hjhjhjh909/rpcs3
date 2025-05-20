@@ -1,9 +1,8 @@
 #pragma once
 
-#include "usb_device.h"
-#include "../../Utilities/Thread.h"
+#include "Emu/Io/usb_device.h"
+#include "Utilities/Thread.h"
 #include "ThrustmasterT500RSConfig.h"
-#include "../../Input/sdl_pad_handler.h"
 
 #ifndef _MSC_VER
 #pragma GCC diagnostic push

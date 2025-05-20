@@ -3,6 +3,7 @@
 #ifdef HAVE_SDL3
 
 #include "Emu/Io/PadHandler.h"
+#include "Emu/Io/pad_mapping_types.h"
 
 #ifndef _MSC_VER
 #pragma GCC diagnostic push

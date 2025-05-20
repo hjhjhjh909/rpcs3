@@ -6,11 +6,27 @@
 
 LOG_CHANNEL(cfg_log, "CFG");
 
+// Define the enums directly
+enum class sdl_mapping_type {
+    button = 0,
+    hat,
+    axis,
+};
+
+enum class hat_component {
+    none = 0,
+    up,
+    down,
+    left,
+    right
+};
+
 #include <string>
 #include <mutex>
 
 // Device type ID structure: num_buttons:10 << 52 | num_hats:10 << 42 | num_axes:10 << 32 | vendor_id:16 << 16 | product_id:16
 struct emulated_t500rs_device_type_id
+
 {
     u64 product_id = 0;
     u64 vendor_id = 0;

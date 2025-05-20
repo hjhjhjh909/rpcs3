@@ -1,17 +1,19 @@
 #pragma once
 
 #include "Utilities/Config.h"
-
 #include <mutex>
+#include <string>
 
-// Define the enums directly
-enum class sdl_mapping_type {
+// Mapping enums
+enum class sdl_mapping_type
+{
     button = 0,
     hat,
     axis,
 };
 
-enum class hat_component {
+enum class hat_component
+{
     none = 0,
     up,
     down,
@@ -19,12 +21,8 @@ enum class hat_component {
     right
 };
 
-#include <string>
-#include <mutex>
-
 // Device type ID structure: num_buttons:10 << 52 | num_hats:10 << 42 | num_axes:10 << 32 | vendor_id:16 << 16 | product_id:16
 struct emulated_t500rs_device_type_id
-
 {
     u64 product_id = 0;
     u64 vendor_id = 0;
@@ -65,9 +63,9 @@ struct emulated_t500rs_mapping : cfg::node
 struct emulated_t500rs_config : cfg::node
 {
 public:
-    std::mutex m_mutex;
+    std::mutex m_mutex; // For thread-safe config access
 
-    // Default mappings for T500RS
+    // Default mappings for T500RS (try to keep order and names similar to G27 config)
     emulated_t500rs_mapping steering{this, "steering", 0, sdl_mapping_type::axis, 0, hat_component::none, false};
     emulated_t500rs_mapping throttle{this, "throttle", 0, sdl_mapping_type::axis, 1, hat_component::none, false};
     emulated_t500rs_mapping brake{this, "brake", 0, sdl_mapping_type::axis, 2, hat_component::none, false};
@@ -96,13 +94,12 @@ public:
     emulated_t500rs_mapping r3{this, "r3", 0, sdl_mapping_type::button, 9, hat_component::none, false};
 
     emulated_t500rs_mapping select{this, "select", 0, sdl_mapping_type::button, 10, hat_component::none, false};
-    emulated_t500rs_mapping start{this, "start", 0, sdl_mapping_type::button, 11, hat_component::none, false};
+    emulated_t500rs_mapping pause{this, "pause", 0, sdl_mapping_type::button, 11, hat_component::none, false}; // renamed from "start" for symmetry
 
     // Force Feedback and LED configuration
     cfg::_bool reverse_effects{this, "reverse_effects", false};
     cfg::uint<0, 0xFFFFFFFFFFFFFFFF> ffb_device_type_id{this, "ffb_device_type_id", 0};
     cfg::uint<0, 0xFFFFFFFFFFFFFFFF> led_device_type_id{this, "led_device_type_id", 0};
-
     cfg::_bool enabled{this, "enabled", false};
 
     emulated_t500rs_config();
@@ -115,4 +112,4 @@ private:
     const std::string m_path;
 };
 
-extern emulated_t500rs_config g_cfg_t500rs; 
+extern emulated_t500rs_config g_cfg_t500rs;

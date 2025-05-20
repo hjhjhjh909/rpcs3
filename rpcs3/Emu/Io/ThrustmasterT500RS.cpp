@@ -1,4 +1,3 @@
-
 // Thrustmaster T500RS
 
 #include "stdafx.h"
@@ -19,7 +18,7 @@ static const SDL_HapticDirection STEERING_DIRECTION =
     .dir = {0, 0, 0}
 };
 
-usb_device_thrustmaster_t500rs::usb_device_thrustmaster_t500rs(u32 controller_index, const std::array<u8, 7>& location)
+usb_device_t500rs::usb_device_t500rs(u32 controller_index, const std::array<u8, 7>& location)
     : usb_device_emulated(location), m_controller_index(controller_index)
 {
     // USB descriptor: update vendor/product for T500RS if different
@@ -61,12 +60,12 @@ usb_device_thrustmaster_t500rs::usb_device_thrustmaster_t500rs(u32 controller_in
     });
 }
 
-bool usb_device_thrustmaster_t500rs::open_device()
+bool usb_device_t500rs::open_device()
 {
     return m_enabled;
 }
 
-usb_device_thrustmaster_t500rs::~usb_device_thrustmaster_t500rs()
+usb_device_t500rs::~usb_device_t500rs()
 {
     m_house_keeping_thread.reset();
 
@@ -79,17 +78,17 @@ usb_device_thrustmaster_t500rs::~usb_device_thrustmaster_t500rs()
     clear_sdl_joysticks(m_joysticks);
 }
 
-std::shared_ptr<usb_device> usb_device_thrustmaster_t500rs::make_instance(u32 controller_index, const std::array<u8, 7>& location)
+std::shared_ptr<usb_device> usb_device_t500rs::make_instance(u32 controller_index, const std::array<u8, 7>& location)
 {
-    return std::make_shared<usb_device_thrustmaster_t500rs>(controller_index, location);
+    return std::make_shared<usb_device_t500rs>(controller_index, location);
 }
 
-u16 usb_device_thrustmaster_t500rs::get_num_emu_devices()
+u16 usb_device_t500rs::get_num_emu_devices()
 {
     return 1;
 }
 
-void usb_device_thrustmaster_t500rs::control_transfer(u8 bmRequestType, u8 bRequest, u16 wValue, u16 wIndex, u16 wLength, u32 buf_size, u8* buf, UsbTransfer* transfer)
+void usb_device_t500rs::control_transfer(u8 bmRequestType, u8 bRequest, u16 wValue, u16 wIndex, u16 wLength, u32 buf_size, u8* buf, UsbTransfer* transfer)
 {
     transfer->fake = true;
     transfer->expected_count = buf_size;
@@ -100,5 +99,4 @@ void usb_device_thrustmaster_t500rs::control_transfer(u8 bmRequestType, u8 bRequ
 }
 
 #endif
-
 

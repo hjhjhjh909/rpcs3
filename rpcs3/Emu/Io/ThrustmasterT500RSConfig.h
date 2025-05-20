@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Utilities/Config.h"
+
 #include <mutex>
 
 // Mapping enums
